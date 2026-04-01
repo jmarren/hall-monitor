@@ -7,7 +7,29 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
+
+const deletePostById = `-- name: DeletePostById :exec
+DELETE FROM posts
+WHERE id = $1
+`
+
+func (q *Queries) DeletePostById(ctx context.Context, id int32) error {
+	_, err := q.db.Exec(ctx, deletePostById, id)
+	return err
+}
+
+const deletePostsByUserId = `-- name: DeletePostsByUserId :exec
+DELETE FROM posts
+WHERE posts.user_id = $1
+`
+
+func (q *Queries) DeletePostsByUserId(ctx context.Context, userID pgtype.Int4) error {
+	_, err := q.db.Exec(ctx, deletePostsByUserId, userID)
+	return err
+}
 
 const deleteUserById = `-- name: DeleteUserById :exec
 DELETE FROM users
@@ -27,6 +49,102 @@ WHERE name = $1
 func (q *Queries) DeleteUserByName(ctx context.Context, name string) error {
 	_, err := q.db.Exec(ctx, deleteUserByName, name)
 	return err
+}
+
+const getMostRecentUserPostById = `-- name: GetMostRecentUserPostById :one
+SELECT id
+FROM posts
+WHERE user_id = $1
+ORDER BY created_at DESC
+LIMIT 1
+`
+
+func (q *Queries) GetMostRecentUserPostById(ctx context.Context, userID pgtype.Int4) (int32, error) {
+	row := q.db.QueryRow(ctx, getMostRecentUserPostById, userID)
+	var id int32
+	err := row.Scan(&id)
+	return id, err
+}
+
+const getMostRecentUserPostByUserName = `-- name: GetMostRecentUserPostByUserName :one
+SELECT posts.id
+FROM posts
+JOIN users
+	ON users.id = posts.user_id
+WHERE users.name = $1
+ORDER BY posts.created_at DESC
+LIMIT 1
+`
+
+func (q *Queries) GetMostRecentUserPostByUserName(ctx context.Context, userName string) (int32, error) {
+	row := q.db.QueryRow(ctx, getMostRecentUserPostByUserName, userName)
+	var id int32
+	err := row.Scan(&id)
+	return id, err
+}
+
+const getPostAuthor = `-- name: GetPostAuthor :one
+SELECT users.id
+FROM users
+JOIN posts
+	ON posts.user_id = users.id
+WHERE posts.id = $1
+`
+
+func (q *Queries) GetPostAuthor(ctx context.Context, postID int32) (int32, error) {
+	row := q.db.QueryRow(ctx, getPostAuthor, postID)
+	var id int32
+	err := row.Scan(&id)
+	return id, err
+}
+
+const getPostById = `-- name: GetPostById :one
+SELECT id, user_id, content, created_at
+FROM posts
+WHERE id = $1
+`
+
+func (q *Queries) GetPostById(ctx context.Context, id int32) (*Post, error) {
+	row := q.db.QueryRow(ctx, getPostById, id)
+	var i Post
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Content,
+		&i.CreatedAt,
+	)
+	return &i, err
+}
+
+const getPostsByUserId = `-- name: GetPostsByUserId :many
+SELECT id, user_id, content, created_at
+FROM posts
+WHERE posts.user_id = $1
+`
+
+func (q *Queries) GetPostsByUserId(ctx context.Context, userID pgtype.Int4) ([]*Post, error) {
+	rows, err := q.db.Query(ctx, getPostsByUserId, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*Post
+	for rows.Next() {
+		var i Post
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Content,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getUserById = `-- name: GetUserById :one

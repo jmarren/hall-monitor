@@ -8,7 +8,7 @@ import (
 )
 
 type GetFunc[T any, U any] func(ctx context.Context, id U) (*T, error)
-type GetListFunc[T any, U any] func(ctx context.Context, id U) ([]*T, error)
+type GetListFunc[T any] func(ctx context.Context) ([]*T, error)
 type UpdateFunc[T any, U any] func(ctx context.Context, id U, data *T) error
 type DeleteFunc[U any] func(ctx context.Context, id U) error
 
@@ -39,51 +39,14 @@ func (m *model[T, U]) Context() context.Context {
 type listModel[T any, U any] struct {
 	id         U
 	ctx        context.Context
-	getFunc    GetListFunc[T, U]
+	getFunc    GetListFunc[T]
 	updateFunc UpdateFunc[T, U]
 	deleteFunc DeleteFunc[U]
 }
 
-func (l *listModel[T, U]) Get() ([]*T, error) {
-	return l.getFunc(l.ctx, l.id)
-}
-
-func (l *listModel[T, U]) Delete() error {
-	return l.deleteFunc(l.ctx, l.id)
-}
-
-type userPostsModel struct {
-	ListModel[db.Post]
-	// *listModel[db.Post, int32]
-}
-
-type ListModel[T any] interface {
-	Get() ([]*T, error)
-	Delete() error
-}
-
-// func NewListModel[T any, U any]func(ctx context.Context, id U) ListModel[T, U] {
-// 	return
+// type userPostsModel struct {
+//
 // }
-
-func newInt4(i int32) pgtype.Int4 {
-	return pgtype.Int4{
-		Int32: i,
-		Valid: true,
-	}
-}
-
-func NewUserPostsModel(ctx context.Context, userId pgtype.Int4) ListModel[db.Post] {
-	return &userPostsModel{
-		&listModel[db.Post, pgtype.Int4]{
-			ctx:        ctx,
-			id:         userId,
-			getFunc:    db.Query.GetPostsByUserId,
-			deleteFunc: db.Query.DeletePostsByUserId,
-		},
-	}
-}
-
 //
 
 type ModelOption[T any, U any] func(m *model[T, U])

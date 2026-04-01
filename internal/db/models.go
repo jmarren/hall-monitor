@@ -4,6 +4,17 @@
 
 package db
 
+import (
+	"github.com/jackc/pgx/v5/pgtype"
+)
+
+type Post struct {
+	ID        int32
+	UserID    pgtype.Int4
+	Content   string
+	CreatedAt pgtype.Date
+}
+
 type User struct {
 	ID   int32
 	Name string

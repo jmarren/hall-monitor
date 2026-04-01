@@ -37,9 +37,26 @@ func LoggerTwo(h hypergo.HandlerFunc) hypergo.HandlerFunc {
 
 func User(rw *hypergo.RW) templ.Component {
 
-	userModel := models.NewUserModel(int32(1))
-	user, err := userModel.Get(rw.Context())
-	userModel.Delete(rw.Context())
+	userModel := models.NewUserModel(rw.Context(), int32(1))
+	user, err := userModel.Get()
+	userModel.Delete()
+
+	postModel, err := userModel.LastPost()
+	if err != nil {
+		panic(err)
+	}
+
+	authorModel, err := postModel.GetAuthor()
+
+	author, err := authorModel.Get()
+
+	fmt.Printf("author. = %s\n", author.Name)
+
+	post, err := postModel.Get()
+
+	fmt.Printf("post.Content = %s ", post.Content)
+
+	// post.Get()
 	// user, err := db.Query.GetUserById(rw.Context(), 1)
 
 	if errors.Is(err, pgx.ErrNoRows) {

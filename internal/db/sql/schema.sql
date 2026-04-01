@@ -1,7 +1,15 @@
 
 
 CREATE TABLE IF NOT EXISTS users (
-	id SERIAL PRIMARY KEY,
+	id SERIAL  PRIMARY KEY,
 	name TEXT NOT NULL,
 	age INT NOT NULL
+);
+
+
+CREATE TABLE IF NOT EXISTS posts (
+	id SERIAL PRIMARY KEY,
+	user_id INT REFERENCES users(id),
+	content TEXT NOT NULL,
+	created_at DATE NOT NULL
 );
