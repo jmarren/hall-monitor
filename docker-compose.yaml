@@ -1,0 +1,18 @@
+services:
+  db:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: nothing-exciting
+    volumes:
+      - pgdata:/var/lib/postgresql/hall-monitor 
+      - ./internal/db/sql/schema.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - 5436:5432
+
+
+  
+volumes:
+  pgdata:
+
+

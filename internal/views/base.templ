@@ -1,0 +1,48 @@
+package views
+
+
+templ Base(content templ.Component) {
+	<!DOCTYPE html>
+	<html>
+
+		<head> 
+    			<link hx-preserve="true" rel="stylesheet" href="/public/styles.css">
+			<script hx-preserve="true" src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js" integrity="sha384-/TgkGk7p307TH7EXJDuUlgG3Ce1UVolAOFopFekQkkXihi5u/6OCvVKyz1W+idaz" crossorigin="anonymous"></script>
+    <script hx-preserve src="https://cdn.jsdelivr.net/npm/htmx-ext-head-support@2.0.5" integrity="sha384-cvMqHzjCJsOHgGuyB3sWXaUSv/Krm0BdzjuI1rtkjCbL1l1oHJx+cHyVRJhyuEz0" crossorigin="anonymous"></script>
+			<style hx-preserve="true" >
+				#container {
+					border: 2px solid black;
+				}
+			</style>
+		</head>
+
+		<body hx-boost="true" hx-ext="head-support">
+			<div id="page">
+				@Page(content)
+			</div>
+		</body>
+	</html>
+}
+
+
+templ Page(content templ.Component) {
+		<div>
+		<div>Page</div>
+		<a href="/">Home</a>
+		<a href="/about">About</a>
+
+		@content
+		</div>
+}
+
+
+templ Home() {
+	<div id="content">Home</div>
+}
+
+
+templ About() {
+	<div id="content">About</div>
+}
+
+
