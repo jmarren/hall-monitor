@@ -2,11 +2,9 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/a-h/templ"
-	"github.com/jackc/pgx/v5"
 	"github.com/jmarren/hall-monitor/internal/db"
 	"github.com/jmarren/hall-monitor/internal/db/models"
 	"github.com/jmarren/hall-monitor/internal/views"
@@ -37,35 +35,60 @@ func LoggerTwo(h hypergo.HandlerFunc) hypergo.HandlerFunc {
 
 func User(rw *hypergo.RW) templ.Component {
 
-	userModel := models.NewUserModel(rw.Context(), int32(1))
-	user, err := userModel.Get()
-	userModel.Delete()
+	ctx := rw.Context()
 
-	postModel, err := userModel.LastPost()
-	if err != nil {
-		panic(err)
-	}
+	models.Users(ctx).ById(1).Posts().Delete()
 
-	authorModel, err := postModel.GetAuthor()
-
-	author, err := authorModel.Get()
-
-	fmt.Printf("author. = %s\n", author.Name)
-
-	post, err := postModel.Get()
-
-	fmt.Printf("post.Content = %s ", post.Content)
-
+	// models := models.NewModels(context.Background())
+	//
+	// models.UserId(1).Fetch()
+	//
+	// models.Username("john").Posts().Delete()
+	// user, err := models.Username("john").Fetch()
+	//
+	// if err != nil {
+	//
+	// }
+	//
+	// fmt.Printf("err: %v\n", err)
+	//
+	// if user != nil {
+	//
+	// }
+	//
+	// userModel := models.NewUserModel(rw.Context(), int32(1))
+	// user, err := userModel.Fetch()
+	// userModel.Delete()
+	//
+	// postModel, err := userModel.LastPost()
+	// if err != nil {
+	// 	panic(err)
+	// }
+	//
+	// authorModel, err := postModel.Author()
+	//
+	// author, err := authorModel.Fetch()
+	//
+	// authorPosts := authorModel.Posts()
+	//
+	// authorPosts.Delete()
+	//
+	// fmt.Printf("author. = %s\n", author.Name)
+	//
+	// post, err := postModel.Fetch()
+	//
+	// fmt.Printf("post.Content = %s ", post.Content)
+	//
 	// post.Get()
 	// user, err := db.Query.GetUserById(rw.Context(), 1)
 
-	if errors.Is(err, pgx.ErrNoRows) {
-		fmt.Println("no rows")
-	} else {
-		panic(err)
-	}
+	// if errors.Is(err, pgx.ErrNoRows) {
+	// 	fmt.Println("no rows")
+	// } else {
+	// 	panic(err)
+	// }
 
-	fmt.Printf("user = %v\n", user)
+	// fmt.Printf("user = %v\n", user)
 	//
 	// if err != nil {
 	// 	panic(err)

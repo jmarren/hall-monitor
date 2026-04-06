@@ -147,6 +147,39 @@ func (q *Queries) GetPostsByUserId(ctx context.Context, userID pgtype.Int4) ([]*
 	return items, nil
 }
 
+const getPostsByUsername = `-- name: GetPostsByUsername :many
+SELECT posts.id, posts.user_id, posts.content, posts.created_at
+FROM posts
+JOIN users
+	ON posts.user_id = users.id
+WHERE users.name = $1
+`
+
+func (q *Queries) GetPostsByUsername(ctx context.Context, userName string) ([]*Post, error) {
+	rows, err := q.db.Query(ctx, getPostsByUsername, userName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []*Post
+	for rows.Next() {
+		var i Post
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Content,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, &i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getUserById = `-- name: GetUserById :one
 SELECT id, name, age
 FROM users

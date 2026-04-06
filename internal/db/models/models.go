@@ -7,6 +7,28 @@ import (
 	"github.com/jmarren/hall-monitor/internal/db"
 )
 
+type Models struct {
+	ctx context.Context
+}
+
+func NewModels(ctx context.Context) *Models {
+	return &Models{
+		ctx: ctx,
+	}
+}
+
+func (m *Models) Users() *UsersModel {
+	return &UsersModel{
+		m.ctx,
+	}
+}
+
+func Users(ctx context.Context) *UsersModel {
+	return &UsersModel{
+		ctx,
+	}
+}
+
 type GetFunc[T any, U any] func(ctx context.Context, id U) (*T, error)
 type GetListFunc[T any, U any] func(ctx context.Context, id U) ([]*T, error)
 type UpdateFunc[T any, U any] func(ctx context.Context, id U, data *T) error
@@ -20,7 +42,16 @@ type model[T any, U any] struct {
 	deleteFunc DeleteFunc[U]
 }
 
-func (m *model[T, U]) Get() (*T, error) {
+type FetchResult[T any] struct {
+	result *T
+	error  error
+}
+
+// func MakeResult[T, U](getFunc GetFunc) {
+//
+// }
+
+func (m *model[T, U]) Fetch() (*T, error) {
 	return m.getFunc(m.ctx, m.id)
 }
 
@@ -36,6 +67,10 @@ func (m *model[T, U]) Context() context.Context {
 	return m.ctx
 }
 
+type UsernameOrInt4Id interface {
+	pgtype.Int4 | string
+}
+
 type listModel[T any, U any] struct {
 	id         U
 	ctx        context.Context
@@ -44,7 +79,7 @@ type listModel[T any, U any] struct {
 	deleteFunc DeleteFunc[U]
 }
 
-func (l *listModel[T, U]) Get() ([]*T, error) {
+func (l *listModel[T, U]) Fetch() ([]*T, error) {
 	return l.getFunc(l.ctx, l.id)
 }
 
@@ -58,13 +93,9 @@ type userPostsModel struct {
 }
 
 type ListModel[T any] interface {
-	Get() ([]*T, error)
+	Fetch() ([]*T, error)
 	Delete() error
 }
-
-// func NewListModel[T any, U any]func(ctx context.Context, id U) ListModel[T, U] {
-// 	return
-// }
 
 func newInt4(i int32) pgtype.Int4 {
 	return pgtype.Int4{
@@ -73,18 +104,38 @@ func newInt4(i int32) pgtype.Int4 {
 	}
 }
 
-func NewUserPostsModel(ctx context.Context, userId pgtype.Int4) ListModel[db.Post] {
-	return &userPostsModel{
-		&listModel[db.Post, pgtype.Int4]{
-			ctx:        ctx,
-			id:         userId,
-			getFunc:    db.Query.GetPostsByUserId,
-			deleteFunc: db.Query.DeletePostsByUserId,
-		},
-	}
-}
-
 //
+// func NewUserPostsModel[U UsernameOrInt4Id](ctx context.Context, ident U) ListModel[db.Post] {
+//
+// 	anyIdent := any(ident)
+//
+// 	var model ListModel[db.Post]
+//
+// 	switch anyIdent.(type) {
+// 	case pgtype.Int4:
+// 		idInt4 := anyIdent.(pgtype.Int4)
+// 		model = &userPostsModel{
+// 			&listModel[db.Post, pgtype.Int4]{
+// 				ctx:        ctx,
+// 				id:         idInt4,
+// 				getFunc:    db.Query.GetPostsByUserId,
+// 				deleteFunc: db.Query.DeletePostsByUserId,
+// 			},
+// 		}
+// 	case string:
+// 		username := anyIdent.(string)
+//
+// 		model = &userPostsModel{
+// 			&listModel[db.Post, string]{
+// 				ctx:     ctx,
+// 				id:      username,
+// 				getFunc: db.Query.GetPostsByUsername,
+// 			},
+// 		}
+// 	}
+//
+// 	return model
+// }
 
 type ModelOption[T any, U any] func(m *model[T, U])
 
@@ -114,10 +165,15 @@ func DeleteFuncOpt[T any, U any](deleteFunc func(ctx context.Context, id U) erro
 type UserModel interface {
 	Model[db.User]
 	LastPost() (PostModel, error)
+	Posts() UserPostsModel
+}
+
+type UserPostsModel interface {
+	ListModel[db.Post]
 }
 
 type Model[T any] interface {
-	Get() (*T, error)
+	Fetch() (*T, error)
 	Update(data *T) error
 	Delete() error
 	Context() context.Context
@@ -134,7 +190,7 @@ type userModel[T IdOrUsername] struct {
 
 type PostModel interface {
 	Model[db.Post]
-	GetAuthor() (UserModel, error)
+	Author() (UserModel, error)
 }
 
 type postModel struct {
@@ -142,7 +198,24 @@ type postModel struct {
 	Model[db.Post]
 }
 
-func (p *postModel) GetAuthor() (UserModel, error) {
+// func (u *userModel[IdOrUsername]) Posts() UserPostsModel {
+//
+// 	var model UserPostsModel
+//
+// 	idAny := any(u.id)
+//
+// 	switch idAny.(type) {
+// 	case int32:
+// 		idInt32 := idAny.(int32)
+// 		model = NewUserPostsModel(u.Context(), newInt4(idInt32))
+// 	case string:
+// 		username := idAny.(string)
+// 		model = NewUserPostsModel(u.Context(), username)
+// 	}
+// 	return model
+// }
+
+func (p *postModel) Author() (UserModel, error) {
 	authorId, err := db.Query.GetPostAuthor(p.Context(), p.id)
 
 	if err != nil {
@@ -161,34 +234,31 @@ func NewPostModel(ctx context.Context, id int32) PostModel {
 	}
 }
 
-func (u *userModel[IdOrUsername]) LastPost() (PostModel, error) {
-
-	var mostRecentId int32
-	var err error
-
-	switch any(u.id).(type) {
-	case int32:
-		id := any(u.id)
-		idInt32 := id.(int32)
-		mostRecentId, err = db.Query.GetMostRecentUserPostById(u.Context(), pgtype.Int4{
-			Int32: idInt32,
-			Valid: true,
-		})
-
-		if err != nil {
-			return nil, err
-		}
-
-	case string:
-		username := any(u.id).(string)
-		mostRecentId, err = db.Query.GetMostRecentUserPostByUserName(u.Context(), username)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return NewPostModel(u.Context(), mostRecentId), nil
-}
+// func (u *userModel[IdOrUsername]) LastPost() (PostModel, error) {
+//
+// 	var mostRecentId int32
+// 	var err error
+//
+// 	switch any(u.id).(type) {
+// 	case int32:
+// 		id := any(u.id)
+// 		idInt32 := id.(int32)
+// 		mostRecentId, err = db.Query.GetMostRecentUserPostById(u.Context(), newInt4(idInt32))
+//
+// 		if err != nil {
+// 			return nil, err
+// 		}
+//
+// 	case string:
+// 		username := any(u.id).(string)
+// 		mostRecentId, err = db.Query.GetMostRecentUserPostByUserName(u.Context(), username)
+// 		if err != nil {
+// 			return nil, err
+// 		}
+// 	}
+//
+// 	return NewPostModel(u.Context(), mostRecentId), nil
+// }
 
 func NewUserModel[U IdOrUsername](ctx context.Context, id U) UserModel {
 
@@ -200,7 +270,7 @@ func NewUserModel[U IdOrUsername](ctx context.Context, id U) UserModel {
 			GetFuncOpt(db.Query.GetUserById),
 			DeleteFuncOpt[db.User](db.Query.DeleteUserById))
 
-		return &userModel[int32]{
+		return &UserId{
 			id:    idInt32,
 			Model: baseModel,
 		}
@@ -210,7 +280,7 @@ func NewUserModel[U IdOrUsername](ctx context.Context, id U) UserModel {
 			GetFuncOpt(db.Query.GetUserByName),
 			DeleteFuncOpt[db.User](db.Query.DeleteUserByName))
 
-		return &userModel[string]{
+		return &Username{
 			id:    username,
 			Model: baseModel,
 		}

@@ -62,6 +62,22 @@ FROM posts
 WHERE posts.user_id = @user_id;
 
 
+-- name: GetPostsByUsername :many
+SELECT posts.*
+FROM posts
+JOIN users
+	ON posts.user_id = users.id
+WHERE users.name = @user_name;
+
+
+-- -- name: GetPostsByUsername :many
+-- SELECT posts.*
+-- FROM posts
+-- JOIN users
+-- 	ON posts.user_id = users.id
+-- WHERE users.name = @user_name;
+
+
 -- name: DeletePostsByUserId :exec
 DELETE FROM posts
 WHERE posts.user_id = @user_id;
